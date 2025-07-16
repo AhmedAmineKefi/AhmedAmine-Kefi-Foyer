@@ -21,7 +21,7 @@ pipeline {
                 git(
                     url: 'https://${GITHUB_TOKEN}@github.com/AhmedAmineKefi/AhmedAmine-Kefi-Foyer.git',
                     credentialsId: 'github-token',
-                    branch: 'master'
+                    branch: '2ALINFO2'
                 )
                 sh 'ls -la'  // Verify files
             }
