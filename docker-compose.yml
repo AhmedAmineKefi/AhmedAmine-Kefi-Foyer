@@ -24,7 +24,9 @@ services:
       mysql:
         condition: service_healthy
       nexus:
+        condition: service_healthy
       sonarqube:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
       interval: 30s
