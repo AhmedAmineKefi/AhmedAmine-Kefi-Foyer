@@ -23,7 +23,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      - nexus
+      nexus:
+      sonarqube:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
       interval: 30s
@@ -61,7 +62,19 @@ services:
       - backend
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-
+  sonarqube:
+    image: sonarqube:lts
+    container_name: sonarqube
+    hostname: sonarqube
+    ports:
+      - "9000:9000"
+    networks:
+      - backend
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
   nexus:
     image: sonatype/nexus3
     ports:
@@ -99,7 +112,8 @@ volumes:
   nexus_data:
   mysql_data:
   grafana_data:
-
+  sonarqube_data:
+  sonarqube_extensions:
 networks:
   backend:
     driver: bridge
