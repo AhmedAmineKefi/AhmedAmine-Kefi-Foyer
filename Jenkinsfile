@@ -9,8 +9,8 @@ pipeline {
         GITHUB_TOKEN = credentials('github-token')
 
         // URLs
-        NEXUS_URL = 'http://nexus:8081'
-        SONARQUBE_URL = 'http://sonarqube:9000'
+        NEXUS_URL = 'http://localhost:8081'
+        SONARQUBE_URL = 'http://localhost:9000'
         DOCKER_IMAGE = 'aakefi/foyer-app'
     }
 
