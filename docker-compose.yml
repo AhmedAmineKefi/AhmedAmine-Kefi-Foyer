@@ -8,11 +8,12 @@ services:
       dockerfile: Dockerfile
     image: aakefi/foyer-app:latest
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=admin
-      - SERVER_PORT=8086
-      - SERVER_SERVLET_CONTEXT_PATH=/Foyer
+      - SPRING_DATASOURCE_DRIVER-CLASS-NAME=com.mysql.cj.jdbc.Driver
+      - SPRING_JPA_HIBERNATE_DDL-AUTO=update
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
     ports:
       - "8086:8086"  # Matches your application.properties
       - "9404:9404"   # Prometheus metrics
@@ -20,7 +21,8 @@ services:
       - backend
       - monitoring
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
       - nexus
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
