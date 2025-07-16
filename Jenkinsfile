@@ -1,0 +1,116 @@
+pipeline {
+    agent any
+
+    environment {
+        // Credentials (configure these in Jenkins)
+        DOCKER_HUB_CREDS = credentials('docker-hub-creds')
+        NEXUS_CREDS = credentials('nexus-creds')
+        SONAR_CREDS = credentials('sonar-creds')
+        GITHUB_TOKEN = credentials('github-token')
+
+        // URLs
+        NEXUS_URL = 'http://nexus:8081'
+        SONARQUBE_URL = 'http://sonarqube:9000'
+        DOCKER_IMAGE = 'aakefi/foyer-app'
+    }
+
+    stages {
+        // Stage 1: Clone Git Repo
+        stage('Clone Git Project') {
+            steps {
+                git(
+                    url: 'https://${GITHUB_TOKEN}@github.com/AhmedAmineKefi/AhmedAmine-Kefi-Foyer.git',
+                    credentialsId: 'github-token',
+                    branch: 'main'
+                )
+                sh 'ls -la'  // Verify files
+            }
+        }
+
+        // Stage 2: Maven Build
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean compile test -DskipTests=false'
+            }
+        }
+
+        // Stage 3: SonarQube Analysis
+        stage('SonarQube Scan') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'sonar-creds', usernameVariable: 'SONAR_USER', passwordVariable: 'SONAR_PASS')]) {
+                    sh """
+                        mvn sonar:sonar \
+                          -Dsonar.host.url=${SONARQUBE_URL} \
+                          -Dsonar.login=${SONAR_USER} \
+                          -Dsonar.password=${SONAR_PASS}
+                    """
+                }
+            }
+        }
+
+        // Stage 4: Deploy to Nexus
+        stage('Nexus Deploy') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    sh """
+                        mvn deploy \
+                          -DaltDeploymentRepository=nexus::default::${NEXUS_URL}/repository/maven-releases/ \
+                          -DrepositoryId=nexus \
+                          -Durl=${NEXUS_URL}/repository/maven-releases/ \
+                          -Dnexus.user=${NEXUS_USER} \
+                          -Dnexus.password=${NEXUS_PASS}
+                    """
+                }
+            }
+        }
+
+        // Stage 5: Docker Build
+        stage('Docker Build') {
+            steps {
+                script {
+                    dockerImage = docker.build("${DOCKER_IMAGE}:${env.BUILD_ID}")
+                }
+            }
+        }
+
+        // Stage 6: Push to Docker Hub
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
+                        echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin
+                        docker push ${DOCKER_IMAGE}:${env.BUILD_ID}
+                        docker tag ${DOCKER_IMAGE}:${env.BUILD_ID} ${DOCKER_IMAGE}:latest
+                        docker push ${DOCKER_IMAGE}:latest
+                    """
+                }
+            }
+        }
+
+        // Stage 7: Docker Compose
+        stage('Docker Compose Up') {
+            steps {
+                sh '''
+                    docker-compose down || true
+                    docker-compose pull --quiet
+                    docker-compose up -d --build
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker system prune -f'
+            cleanWs()
+        }
+        success {
+            echo """
+            ✅ Pipeline Successful!
+            Application: http://localhost:8080
+            SonarQube: ${SONARQUBE_URL} (admin/admin)
+            Nexus: ${NEXUS_URL} (admin/dd66a977-636f-47c9-ba17-f1c6e0dcd371)
+            """
+        }
+    }
+}

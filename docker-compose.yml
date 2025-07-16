@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Your Spring Boot App
+  app:
+    build: .
+    image: aakefi/foyer-app:latest
+    ports:
+      - "8080:8080"
+      - "9404:9404"
+    networks:
+      - backend
+      - monitoring
+    depends_on:
+      - db
+      - nexus
+
+  # Database
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: foyer
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  # CI/CD Services
+  jenkins:
+    image: jenkins/jenkins:lts
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "49000:8080"
+    networks:
+      - backend
+
+  nexus:
+    image: sonatype/nexus3
+    ports:
+      - "8081:8081"
+    volumes:
+      - nexus_data:/nexus-data
+    networks:
+      - backend
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring
+
+volumes:
+  jenkins_data:
+  nexus_data:
+  postgres_data:
+  grafana_data:
+
+networks:
+  backend:
+  monitoring:
