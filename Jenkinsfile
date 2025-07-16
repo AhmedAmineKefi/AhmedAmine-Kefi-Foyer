@@ -30,7 +30,7 @@ pipeline {
         // Stage 2: Maven Build
         stage('Maven Build') {
             steps {
-                sh 'mvn clean compile  -DskipTests=true'
+                sh 'mvn clean package'
             }
         }
 
