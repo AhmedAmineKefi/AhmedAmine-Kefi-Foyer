@@ -1,17 +1,24 @@
-# Build stage
-FROM maven:3.8.6-openjdk-11 AS build
+# Build stage (Java 17)
+FROM maven:3.8.6-openjdk-17 AS build
 WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline
 COPY src ./src
 RUN mvn package -DskipTests
 
-# Runtime stage
-FROM openjdk:11-jre-slim
+# Runtime stage (Java 17)
+FROM openjdk:17-jdk-slim
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-COPY config/application.yml ./config/
 
-# Prometheus metrics endpoint
-EXPOSE 8080 9404
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Install MySQL client for health checks (optional)
+RUN apt-get update && \
+    apt-get install -y mysql-client && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app/target/*.jar app.jar
+COPY src/main/resources/application.properties ./config/
+
+# Expose app + metrics ports
+EXPOSE 8086 9404
+
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.location=classpath:/config/application.properties"]
