@@ -1,42 +1,64 @@
 version: '3.8'
 
 services:
-  # Your Spring Boot App
+  # Spring Boot App (Updated for Java 17)
   app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     image: aakefi/foyer-app:latest
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - SERVER_PORT=8086
+      - SERVER_SERVLET_CONTEXT_PATH=/Foyer
     ports:
-      - "8080:8080"
-      - "9404:9404"
+      - "8086:8086"  # Matches your application.properties
+      - "9404:9404"   # Prometheus metrics
     networks:
       - backend
       - monitoring
     depends_on:
-      - db
+      - mysql
       - nexus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Database
-  db:
-    image: postgres:13
+  # MySQL Database (Replaced PostgreSQL)
+  mysql:
+    image: mysql:8.0
     environment:
-      POSTGRES_DB: foyer
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: foyer
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   # CI/CD Services
   jenkins:
     image: jenkins/jenkins:lts
+    user: root  # Temporary for Docker access
     volumes:
       - jenkins_data:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "49000:8080"
+      - "50000:50000"
     networks:
       - backend
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
 
   nexus:
     image: sonatype/nexus3
@@ -47,7 +69,7 @@ services:
     networks:
       - backend
 
-  # Monitoring
+  # Monitoring Stack
   prometheus:
     image: prom/prometheus
     volumes:
@@ -66,13 +88,18 @@ services:
       - "3000:3000"
     networks:
       - monitoring
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
 
 volumes:
   jenkins_data:
   nexus_data:
-  postgres_data:
+  mysql_data:
   grafana_data:
 
 networks:
   backend:
+    driver: bridge
   monitoring:
+    driver: bridge
