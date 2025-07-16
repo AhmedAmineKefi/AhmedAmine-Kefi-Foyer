@@ -1,57 +1,57 @@
 package tn.esprit.spring;
 
-import org.junit.After;
 import org.junit.jupiter.api.*;
-import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+import tn.esprit.spring.DAO.Entities.Bloc;
+import tn.esprit.spring.Services.Bloc.BlocService;
 
-@RunWith(SpringRunner.class)
-@TestMethodOrder(MethodOrderer.class)
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
 @SpringBootTest
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class BlocServiceTest {
 
-    @BeforeAll
-    void bedore() {
-
-    }
-
-    @AfterAll
-    void after() {
-
-    }
-
-    @BeforeEach
-    void beforeEach() {
-
-    }
-
-    @AfterEach
-    void afterEach() {
-
-    }
+    @Autowired
+    BlocService blocService;
 
     @Order(1)
-    @RepeatedTest(4)
-    void test() {
-
-    }
-
-    @Order(4)
     @Test
-    void test2() {
+    void testAddOrUpdate() {
+        Bloc bloc = new Bloc();
+        bloc.setNomBloc("IntegrationTestBloc");
 
+        Bloc result = blocService.addOrUpdate(bloc);
+
+        assertNotNull(result);
+        assertEquals("IntegrationTestBloc", result.getNomBloc());
     }
 
     @Order(2)
     @Test
-    void test3() {
+    void testFindAll() {
+        List<Bloc> blocs = blocService.findAll();
 
+        assertNotNull(blocs);
+        assertTrue(blocs.size() > 0);
     }
 
     @Order(3)
     @Test
-    void test4() {
+    void testFindById() {
+        Bloc bloc = blocService.findById(1L);
 
+        assertNotNull(bloc);
+        assertEquals(1L, bloc.getIdBloc());
+    }
+
+    @Order(4)
+    @Test
+    void testDeleteById() {
+        blocService.deleteById(1L);
+
+        assertThrows(Exception.class, () -> blocService.findById(1L));
     }
 }
