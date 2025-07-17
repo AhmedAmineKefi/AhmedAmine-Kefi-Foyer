@@ -97,15 +97,49 @@ pipeline {
         }
 
         // Stage 7: Docker Compose
-        stage('Docker Compose Up') {
-            steps {
-                sh '''
-                    docker-compose down || true
-                    docker-compose pull --quiet
-                    docker-compose up -d --build
-                '''
+       stage('Docker Compose Up') {
+    steps {
+        script {
+            // Clean up any existing containers
+            sh 'docker-compose down --remove-orphans || true'
+            
+            // Pull latest images quietly
+            sh 'docker-compose pull --quiet'
+            
+            // Build and start with health checks
+            sh 'docker-compose up -d --build'
+            
+            // Wait for services to be healthy
+            timeout(time: 5, unit: 'MINUTES') {
+                waitUntil {
+                    def appHealthy = sh(
+                        script: 'docker inspect --format="{{.State.Health.Status}}" foyer-pipeline-app-1',
+                        returnStdout: true
+                    ).trim() == 'healthy'
+                    
+                    def mysqlHealthy = sh(
+                        script: 'docker inspect --format="{{.State.Health.Status}}" foyer-pipeline-mysql-1',
+                        returnStdout: true
+                    ).trim() == 'healthy'
+                    
+                    def nexusHealthy = sh(
+                        script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:8081',
+                        returnStdout: true
+                    ).trim() == '200'
+                    
+                    return appHealthy && mysqlHealthy && nexusHealthy
+                }
             }
+            
+            // Log service statuses
+            sh '''
+                echo "=== Service Status ==="
+                docker-compose ps
+                echo "====================="
+            '''
         }
+    }
+}
     }
 
     post {
