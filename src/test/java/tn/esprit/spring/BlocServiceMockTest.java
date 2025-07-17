@@ -11,6 +11,7 @@ import tn.esprit.spring.DAO.Repositories.ChambreRepository;
 import tn.esprit.spring.DAO.Repositories.FoyerRepository;
 import tn.esprit.spring.Services.Bloc.BlocService;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 import static org.mockito.Mockito.*;
@@ -32,47 +33,69 @@ public class BlocServiceMockTest {
     @InjectMocks
     BlocService blocService;
 
-    @Order(1)
     @Test
-    void testAddOrUpdate() {
-        Bloc bloc = new Bloc();
-        bloc.setNomBloc("TestBloc");
+    @Order(1)
+    public void testAddOrUpdate() {
+        Bloc mockBloc = new Bloc();
+        mockBloc.setIdBloc(1L);
+        mockBloc.setNomBloc("Test Bloc");
 
-        when(blocRepository.save(bloc)).thenReturn(bloc);
+        when(blocRepository.save(mockBloc)).thenReturn(mockBloc);
 
-        Bloc result = blocService.addOrUpdate(bloc);
+        Bloc result = blocService.addOrUpdate(mockBloc);
 
         assertNotNull(result);
-        assertEquals("TestBloc", result.getNomBloc());
-        verify(blocRepository, times(1)).save(bloc);
+        assertEquals("Test Bloc", result.getNomBloc());
+        verify(blocRepository, times(1)).save(mockBloc);
     }
 
-    @Order(2)
     @Test
-    void testFindById() {
-        Bloc bloc = new Bloc();
-        bloc.setIdBloc(1L);
+    @Order(2)
+    public void testFindAll() {
+        Bloc mockBloc1 = new Bloc();
+        mockBloc1.setIdBloc(1L);
+        mockBloc1.setNomBloc("Bloc 1");
 
-        when(blocRepository.findById(1L)).thenReturn(Optional.of(bloc));
+        Bloc mockBloc2 = new Bloc();
+        mockBloc2.setIdBloc(2L);
+        mockBloc2.setNomBloc("Bloc 2");
+
+        when(blocRepository.findAll()).thenReturn(Arrays.asList(mockBloc1, mockBloc2));
+
+        var result = blocService.findAll();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        verify(blocRepository, times(1)).findAll();
+    }
+
+    @Test
+    @Order(3)
+    public void testFindById() {
+        Bloc mockBloc = new Bloc();
+        mockBloc.setIdBloc(1L);
+        mockBloc.setNomBloc("Test Bloc");
+
+        when(blocRepository.findById(1L)).thenReturn(Optional.of(mockBloc));
 
         Bloc result = blocService.findById(1L);
 
         assertNotNull(result);
-        assertEquals(1L, result.getIdBloc());
+        assertEquals("Test Bloc", result.getNomBloc());
         verify(blocRepository, times(1)).findById(1L);
     }
 
-    @Order(3)
     @Test
-    void testDeleteById() {
-        Bloc bloc = new Bloc();
-        bloc.setIdBloc(1L);
+    @Order(4)
+    public void testDeleteById() {
+        Bloc mockBloc = new Bloc();
+        mockBloc.setIdBloc(1L);
 
-        when(blocRepository.findById(1L)).thenReturn(Optional.of(bloc));
+        when(blocRepository.findById(1L)).thenReturn(Optional.of(mockBloc));
 
         blocService.deleteById(1L);
 
-        verify(chambreRepository, times(1)).deleteAll(bloc.getChambres());
-        verify(blocRepository, times(1)).delete(bloc);
+        verify(chambreRepository, times(1)).deleteAll(mockBloc.getChambres());
+        verify(blocRepository, times(1)).delete(mockBloc);
     }
 }
