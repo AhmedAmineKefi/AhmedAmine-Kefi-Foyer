@@ -10,15 +10,9 @@ RUN mvn package -DskipTests
 FROM openjdk:17-jdk-slim
 WORKDIR /app
 
-# Install MySQL client for health checks (optional)
-RUN apt-get update && \
-    apt-get install -y default-mysql-client && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY --from=build /app/target/*.jar app.jar
-COPY src/main/resources/application.properties ./config/
 
 # Expose app + metrics ports
-EXPOSE 8086 9404
+EXPOSE 8086 9464
 
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.location=classpath:/config/application.properties"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
