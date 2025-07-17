@@ -1,34 +1,33 @@
 version: "3.8"
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: aakefi/foyer-app:latest
+  mysql:
+    image: mysql:8.0
+    container_name: mysqlcompose
+    restart: always
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=admin
-      - SPRING_DATASOURCE_DRIVER-CLASS-NAME=com.mysql.cj.jdbc.Driver
-      - SPRING_JPA_HIBERNATE_DDL-AUTO=update
-      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: foyer
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  foyer-app:
+    image: aakefi/foyer:latest
+    container_name: foyer-app
     ports:
       - "8086:8086"
-      - "9404:9404"
-    networks:
-      backend:
-      monitoring:
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?createDatabaseIfNotExist=true&useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - SPRING_JPA_SHOW_SQL=false
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SERVER_PORT=8086
+      - SERVER_SERVLET_CONTEXT_PATH=/Foyer
+    depends_on:
+      - mysql
 
-networks:
-  backend:
-    external: true
-    name: backend  
-  monitoring:
-    external: true
-    name: monitoring
+volumes:
+  mysql_data:
