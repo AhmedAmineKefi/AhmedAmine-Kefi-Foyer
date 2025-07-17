@@ -207,7 +207,7 @@ pipeline {
                 sh 'docker-compose ps || true'
                 
                 // Only clean up build artifacts, not running containers
-                sh 'docker image prune -f --filter "dangling=true" || true'
+               // sh 'docker image prune -f --filter "dangling=true" || true'
                 
                 // Don't run docker system prune as it removes everything
                 // sh 'docker system prune -f'  // REMOVED: This was stopping containers
