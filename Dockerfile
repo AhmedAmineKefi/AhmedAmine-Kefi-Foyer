@@ -14,7 +14,7 @@ RUN mvn clean package -DskipTests
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
 # Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN RUN apk add --no-cache curl
 
 # Set working directory
 WORKDIR /app
@@ -26,7 +26,7 @@ ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/release
 COPY --from=build /app/target/*.jar app.jar
 
 # Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN addgroup -S appuser && adduser -S appuser -G appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
