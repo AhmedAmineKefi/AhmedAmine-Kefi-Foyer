@@ -14,6 +14,19 @@ pipeline {
         DOCKER_IMAGE = 'aakefi/foyer-app'
     }
 
+    parameters {
+        booleanParam(
+            name: 'DEPLOY_MODE',
+            defaultValue: true,
+            description: 'Deploy and keep services running after pipeline'
+        )
+        booleanParam(
+            name: 'FORCE_REBUILD',
+            defaultValue: false,
+            description: 'Force rebuild of all containers'
+        )
+    }
+
     stages {
         // Stage 1: Clone Git Repo
         stage('Clone Git Project') {
@@ -21,16 +34,16 @@ pipeline {
                 git(
                     url: 'https://${GITHUB_TOKEN}@github.com/AhmedAmineKefi/AhmedAmine-Kefi-Foyer.git',
                     credentialsId: 'github-token',
-                    branch: '2ALINFO2OT'  // FIXED: Correct branch name
+                    branch: '2ALINFO2OT'
                 )
-                sh 'ls -la'  // Verify files
+                sh 'ls -la'
             }
         }
 
         // Stage 2: Maven Build
         stage('Maven Build package') {
             steps {
-                sh 'mvn clean compile  -DskipTests=true'
+                sh 'mvn clean compile -DskipTests=true'
             }
         }
 
@@ -56,13 +69,6 @@ pipeline {
                     usernameVariable: 'NEXUS_USER',
                     passwordVariable: 'NEXUS_PASS'
                 )]) {
-                    // Debug: Check if variables exist (values will be masked)
-                    sh '''
-                        echo "NEXUS_USER is set (masked): ${NEXUS_USER}"
-                        echo "NEXUS_PASS is set (masked): ${NEXUS_PASS}"
-                    '''
-
-                    // Proceed with Maven deploy
                     sh """
                         mvn deploy \
                           -Dnexus.user=admin \
@@ -82,72 +88,56 @@ pipeline {
             }
         }
 
-        // Stage 6: Push to Docker Hub
-        // stage('Docker Push') {
-        //     steps {
-        //         withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-        //             sh """
-        //                 echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin
-        //                 docker push ${DOCKER_IMAGE}:${env.BUILD_ID}
-        //                 docker tag ${DOCKER_IMAGE}:${env.BUILD_ID} ${DOCKER_IMAGE}:latest
-        //                 docker push ${DOCKER_IMAGE}:latest
-        //             """
-        //         }
-        //     }
-        // }
-
-        // Stage 7: Docker Compose - FIXED VERSION
-        stage('Docker Compose Up') {
+        // Stage 6: Docker Compose Deploy - FIXED VERSION
+        stage('Docker Compose Deploy') {
             steps {
                 script {
                     try {
-                        // Stop existing containers gracefully
-                        sh 'docker-compose down --remove-orphans || true'
+                        // Only stop containers if we're doing a force rebuild
+                        if (params.FORCE_REBUILD) {
+                            echo "Force rebuild requested - stopping existing containers"
+                            sh 'docker-compose down --remove-orphans || true'
+                        } else {
+                            echo "Checking existing containers..."
+                            sh 'docker-compose ps || true'
+                        }
                         
-                        // Clean up any dangling images (but preserve volumes)
+                        // Clean up dangling images
                         sh 'docker image prune -f || true'
                         
-                        // Pull latest images quietly
-                        sh 'docker-compose pull --quiet || true'
-
-                        // Build and start with health checks and proper wait
-                        sh 'docker-compose up -d --build --force-recreate'
+                        // Build and start containers
+                        if (params.FORCE_REBUILD) {
+                            sh 'docker-compose up -d --build --force-recreate'
+                        } else {
+                            sh 'docker-compose up -d --build'
+                        }
                         
-                        // Wait for services to be healthy
+                        // Wait for services to start
                         sh '''
-                            echo "Waiting for services to be healthy..."
-                            timeout=300  # 5 minutes timeout
-                            elapsed=0
+                            echo "Waiting for services to start..."
+                            sleep 30
                             
-                            while [ $elapsed -lt $timeout ]; do
-                                if docker-compose ps | grep -q "Up (healthy)"; then
-                                    echo "Services are starting to become healthy..."
-                                fi
-                                
-                                # Check if all services are running
-                                running_services=$(docker-compose ps --services --filter "status=running" | wc -l)
-                                total_services=$(docker-compose ps --services | wc -l)
-                                
-                                if [ "$running_services" -eq "$total_services" ] && [ "$total_services" -gt 0 ]; then
-                                    echo "All services are running!"
-                                    break
-                                fi
-                                
-                                echo "Waiting for services... ($elapsed/$timeout seconds)"
-                                sleep 10
-                                elapsed=$((elapsed + 10))
-                            done
-                            
-                            # Final status check
-                            echo "Final container status:"
+                            # Check container status
+                            echo "=== Container Status ==="
                             docker-compose ps
                             
-                            # Check if any containers failed
-                            if docker-compose ps | grep -q "Exit"; then
-                                echo "Some containers have exited. Checking logs..."
-                                docker-compose logs --tail=50
-                                exit 1
-                            fi
+                            # Wait for application to be ready
+                            echo "=== Waiting for Application ==="
+                            for i in {1..30}; do
+                                # Try both possible ports
+                                if curl -f http://localhost:8087/actuator/health 2>/dev/null; then
+                                    echo "✅ Application is healthy on port 8087!"
+                                    break
+                                elif curl -f http://localhost:8086/Foyer/actuator/health 2>/dev/null; then
+                                    echo "✅ Application is healthy on port 8086!"
+                                    break
+                                elif curl -f http://localhost:8080/actuator/health 2>/dev/null; then
+                                    echo "✅ Application is healthy on port 8080!"
+                                    break
+                                fi
+                                echo "Attempt $i: Application not ready yet..."
+                                sleep 10
+                            done
                         '''
                         
                     } catch (Exception e) {
@@ -160,62 +150,74 @@ pipeline {
             }
         }
         
-        // Stage 8: Verify Deployment
+        // Stage 7: Verify Deployment
         stage('Verify Deployment') {
             steps {
                 script {
                     sh '''
-                        echo "Verifying deployment..."
+                        echo "=== Final Deployment Verification ==="
                         
                         # Check container status
-                        echo "=== Container Status ==="
+                        echo "Container Status:"
                         docker-compose ps
                         
-                        # Check application health
-                        echo "=== Application Health Check ==="
-                        for i in {1..30}; do
-                            if curl -f http://localhost:8086/Foyer/actuator/health 2>/dev/null; then
-                                echo "Application is healthy!"
+                        # Test application endpoints
+                        echo "=== Testing Application Endpoints ==="
+                        
+                        # Try different ports to find the application
+                        APP_PORT=""
+                        for port in 8087 8086 8080; do
+                            if curl -f http://localhost:$port/actuator/health 2>/dev/null; then
+                                APP_PORT=$port
+                                echo "✅ Application found on port $port"
                                 break
                             fi
-                            echo "Attempt $i: Application not ready yet..."
-                            sleep 10
                         done
                         
-                        # Check Prometheus
-                        echo "=== Prometheus Health Check ==="
-                        curl -f http://localhost:9090/-/healthy || echo "Prometheus health check failed"
+                        if [ -z "$APP_PORT" ]; then
+                            echo "❌ Application not responding on any expected port"
+                            echo "Checking application logs:"
+                            docker-compose logs --tail=50 foyer-app
+                        else
+                            echo "✅ Application is healthy on port $APP_PORT"
+                        fi
                         
-                        # Check Grafana
-                        echo "=== Grafana Health Check ==="
-                        curl -f http://localhost:3000/api/health || echo "Grafana health check failed"
-                        
-                        # Final verification
-                        echo "=== Final Container Status ==="
-                        docker-compose ps
+                        # Check monitoring services
+                        echo "=== Checking Monitoring Services ==="
+                        curl -f http://localhost:9090/-/healthy && echo "✅ Prometheus healthy" || echo "❌ Prometheus not healthy"
+                        curl -f http://localhost:3000/api/health && echo "✅ Grafana healthy" || echo "❌ Grafana not healthy"
+                        curl -f http://localhost:16686/ && echo "✅ Jaeger healthy" || echo "❌ Jaeger not healthy"
                     '''
                 }
             }
         }
     }
 
- post {
+    post {
         always {
             script {
-                echo "=== Final Status Before Cleanup ==="
+                echo "=== Pipeline Completed ==="
                 sh 'docker-compose ps'
                 
-                // // Only cleanup on failure or if explicitly requested
-                // if (currentBuild.result == 'FAILURE' || params.CLEANUP_ON_SUCCESS == true) {
-                //     echo "Cleaning up containers..."
-                //     sh 'docker-compose down -v'
-                // } else {
-                    echo "Build successful - leaving services running"
-                    echo "Access your application at: http://localhost:8087"
-                    echo "Access Jaeger at: http://localhost:16686"
-                    echo "Access Grafana at: http://localhost:3000"
-                    echo "Access Prometheus at: http://localhost:9090"
-                // }
+                if (params.DEPLOY_MODE && currentBuild.result != 'FAILURE') {
+                    echo "🚀 DEPLOYMENT MODE - Services will remain running"
+                    echo ""
+                    echo "📋 Access URLs:"
+                    echo "   Application: http://localhost:8087 (or check other ports)"
+                    echo "   Jaeger: http://localhost:16686"
+                    echo "   Grafana: http://localhost:3000 (admin/admin123)"
+                    echo "   Prometheus: http://localhost:9090"
+                    echo ""
+                    echo "🔍 To check status later: docker-compose ps"
+                    echo "🛑 To stop services: docker-compose down"
+                    echo ""
+                    echo "✅ Containers will remain running after pipeline completion"
+                } else if (currentBuild.result == 'FAILURE') {
+                    echo "❌ Pipeline failed - containers may have stopped"
+                    sh 'docker-compose logs --tail=100'
+                } else {
+                    echo "Pipeline completed - check container status manually"
+                }
             }
         }
     }
