@@ -100,43 +100,40 @@ pipeline {
        stage('Docker Compose Up') {
     steps {
         script {
-            // Clean up any existing containers
-            sh 'docker-compose down --remove-orphans || true'
+            // Stop services if running (without removing)
+            sh 'docker-compose stop || true'
             
-            // Pull latest images quietly
-            sh 'docker-compose pull --quiet'
+            // Pull latest images for services that need updating
+            sh 'docker-compose pull --quiet app jenkins prometheus grafana'  # Only pull what changes
             
-            // Build and start with health checks
-            sh 'docker-compose up -d --build'
+            // Bring up services, reusing existing containers
+            sh '''
+                docker-compose up -d \
+                  --no-recreate \
+                  --no-build \
+                  --remove-orphans
+            '''
             
             // Wait for services to be healthy
-            timeout(time: 5, unit: 'MINUTES') {
+            timeout(time: 1, unit: 'MINUTES') {
                 waitUntil {
-                    def appHealthy = sh(
-                        script: 'docker inspect --format="{{.State.Health.Status}}" foyer-pipeline-app-1',
-                        returnStdout: true
-                    ).trim() == 'healthy'
+                    def healthy = true
+                    def services = ['app', 'mysql', 'nexus', 'sonarqube']
                     
-                    def mysqlHealthy = sh(
-                        script: 'docker inspect --format="{{.State.Health.Status}}" foyer-pipeline-mysql-1',
-                        returnStdout: true
-                    ).trim() == 'healthy'
-                    
-                    def nexusHealthy = sh(
-                        script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:8081',
-                        returnStdout: true
-                    ).trim() == '200'
-                    
-                    return appHealthy && mysqlHealthy && nexusHealthy
+                    services.each { service ->
+                        def status = sh(
+                            script: "docker inspect --format='{{.State.Health.Status}}' ${service}",
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (status != 'healthy') {
+                            healthy = false
+                            echo "${service} not healthy yet (status: ${status})"
+                        }
+                    }
+                    return healthy
                 }
             }
-            
-            // Log service statuses
-            sh '''
-                echo "=== Service Status ==="
-                docker-compose ps
-                echo "====================="
-            '''
         }
     }
 }
