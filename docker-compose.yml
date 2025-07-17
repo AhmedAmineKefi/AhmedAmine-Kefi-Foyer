@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Spring Boot App (Updated for Java 17)
   app:
     build: 
       context: .
@@ -15,17 +14,13 @@ services:
       - SPRING_JPA_HIBERNATE_DDL-AUTO=update
       - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
     ports:
-      - "8086:8086"  # Matches your application.properties
-      - "9404:9404"   # Prometheus metrics
+      - "8086:8086"
+      - "9404:9404"
     networks:
       - backend
       - monitoring
     depends_on:
       mysql:
-        condition: service_healthy
-      nexus:
-        condition: service_healthy
-      sonarqube:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
@@ -33,27 +28,30 @@ services:
       timeout: 10s
       retries: 3
 
-  # MySQL Database (Replaced PostgreSQL)
+  # Existing services with external_container links
   mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_DATABASE: foyer
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    external: true
+    container_name: mysql
     networks:
       - backend
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+
+  nexus:
+    external: true
+    container_name: nexus
+    networks:
+      - backend
+
+  sonarqube:
+    external: true
+    container_name: sonarqube
+    networks:
+      - backend
 
   # CI/CD Services
   jenkins:
     image: jenkins/jenkins:lts
-    user: root  # Temporary for Docker access
+    container_name: foyer-pipeline-jenkins-1
+    user: root
     volumes:
       - jenkins_data:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
@@ -64,31 +62,11 @@ services:
       - backend
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-  sonarqube:
-    image: sonarqube:lts
-    container_name: sonarqube
-    hostname: sonarqube
-    ports:
-      - "9000:9000"
-    networks:
-      - backend
-    environment:
-      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
-    volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_extensions:/opt/sonarqube/extensions
-  nexus:
-    image: sonatype/nexus3
-    ports:
-      - "8081:8081"
-    volumes:
-      - nexus_data:/nexus-data
-    networks:
-      - backend
 
   # Monitoring Stack
   prometheus:
     image: prom/prometheus
+    container_name: foyer-pipeline-prometheus-1
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -98,6 +76,7 @@ services:
 
   grafana:
     image: grafana/grafana
+    container_name: foyer-pipeline-grafana-1
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -111,13 +90,11 @@ services:
 
 volumes:
   jenkins_data:
-  nexus_data:
-  mysql_data:
   grafana_data:
-  sonarqube_data:
-  sonarqube_extensions:
+
 networks:
   backend:
-    driver: bridge
+    external: true
+    name: bridge  # Using default bridge network for existing containers
   monitoring:
     driver: bridge
