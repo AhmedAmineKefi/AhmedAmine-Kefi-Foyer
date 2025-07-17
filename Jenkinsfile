@@ -100,40 +100,14 @@ pipeline {
        stage('Docker Compose Up') {
     steps {
         script {
-            // Stop services if running (without removing)
-            sh 'docker-compose stop || true'
+           sh 'docker-compose down --remove-orphans || true'
             
-            // Pull latest images for services that need updating
-            sh 'docker-compose pull --quiet app jenkins prometheus grafana' 
+            // Pull latest images quietly
+            sh 'docker-compose pull --quiet'
             
-            // Bring up services, reusing existing containers
-            sh '''
-                docker-compose up -d \
-                  --no-recreate \
-                  --no-build \
-                  --remove-orphans
-            '''
+            // Build and start with health checks
+            sh 'docker-compose up -d --build'
             
-            // Wait for services to be healthy
-            timeout(time: 1, unit: 'MINUTES') {
-                waitUntil {
-                    def healthy = true
-                    def services = ['app', 'mysql', 'nexus', 'sonarqube']
-                    
-                    services.each { service ->
-                        def status = sh(
-                            script: "docker inspect --format='{{.State.Health.Status}}' ${service}",
-                            returnStdout: true
-                        ).trim()
-                        
-                        if (status != 'healthy') {
-                            healthy = false
-                            echo "${service} not healthy yet (status: ${status})"
-                        }
-                    }
-                    return healthy
-                }
-            }
         }
     }
 }
