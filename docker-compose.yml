@@ -1,8 +1,8 @@
-version: '3.8'
+version: "3.8"
 
 services:
   app:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     image: aakefi/foyer-app:latest
@@ -14,87 +14,25 @@ services:
       - SPRING_JPA_HIBERNATE_DDL-AUTO=update
       - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
     ports:
-      - "8086:8086"
-      - "9404:9404"
+      - "8086:8086"   # Spring Boot app
+      - "9404:9404"   # Prometheus metrics (if used)
+    depends_on:
+      # Optionally use condition: service_healthy if you run dependencies with Compose; here just document for humans
+      # If you want Compose to wait before starting, use healthcheck on app itself
     networks:
       - backend
       - monitoring
-    depends_on:
-      mysql:
-        condition: service_healthy
     healthcheck:
+      # This is optional and helpful for automation
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Existing services with external_container links
-  mysql:
-    external: true
-    container_name: mysql
-    networks:
-      - backend
-
-  nexus:
-    external: true
-    container_name: nexus
-    networks:
-      - backend
-
-  sonarqube:
-    external: true
-    container_name: sonarqube
-    networks:
-      - backend
-
-  # CI/CD Services
-  jenkins:
-    image: jenkins/jenkins:lts
-    container_name: foyer-pipeline-jenkins-1
-    user: root
-    volumes:
-      - jenkins_data:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - "49000:8080"
-      - "50000:50000"
-    networks:
-      - backend
-    environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-
-  # Monitoring Stack
-  prometheus:
-    image: prom/prometheus
-    container_name: foyer-pipeline-prometheus-1
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - monitoring
-
-  grafana:
-    image: grafana/grafana
-    container_name: foyer-pipeline-grafana-1
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    ports:
-      - "3000:3000"
-    networks:
-      - monitoring
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-
-volumes:
-  jenkins_data:
-  grafana_data:
-
 networks:
   backend:
     external: true
-    name: bridge  # Using default bridge network for existing containers
   monitoring:
-    driver: bridge
+    external: true
+
+# NO VOLUMES: app does not need persistent volumes since persistent services are managed outside
