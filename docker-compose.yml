@@ -1,65 +1,46 @@
-version: "3.8"
-
-networks:
-  foyer-network:
-    driver: bridge
+version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mysqlcompose
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: foyer
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - foyer-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
-      timeout: 20s
-      retries: 10
-      interval: 10s
-      start_period: 40s
-
   foyer-app:
     build: .
     container_name: foyer-app
-    restart: always
     ports:
-      - "8086:8086"
-      - "9464:9464"
+      - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?createDatabaseIfNotExist=true&useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=password
-      - SPRING_JPA_SHOW_SQL=false
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
-      - SERVER_PORT=8086
-      - SERVER_SERVLET_CONTEXT_PATH=/Foyer
+      - OTEL_SERVICE_NAME=foyer-app
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:14250
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+      - JAVA_OPTS=-javaagent:/app/opentelemetry-javaagent.jar
     depends_on:
-      mysql:
-        condition: service_healthy
+      - jaeger
+      - prometheus
+      - grafana
     networks:
-      - foyer-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
-      start_period: 60s
+      - monitoring
 
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14250:14250"  # OTLP gRPC receiver
+      - "14268:14268"  # Jaeger HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - monitoring
+
+  # Prometheus for metrics collection
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.47.0
     container_name: prometheus
-    restart: always
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -68,42 +49,47 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
-    depends_on:
-      foyer-app:
-        condition: service_healthy
     networks:
-      - foyer-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
-      start_period: 30s
+      - monitoring
 
+  # Grafana for visualization
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.1.0
     container_name: grafana
-    restart: always
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
-      prometheus:
-        condition: service_healthy
+      - prometheus
     networks:
-      - foyer-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
-      start_period: 30s
+      - monitoring
+
+  # Jenkins for CI/CD
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - monitoring
 
 volumes:
-  mysql_data:
   prometheus_data:
   grafana_data:
+  jenkins_data:
+
+networks:
+  monitoring:
+    driver: bridge
