@@ -205,17 +205,17 @@ pipeline {
                 echo "=== Final Status Before Cleanup ==="
                 sh 'docker-compose ps'
                 
-                // Only cleanup on failure or if explicitly requested
-                if (currentBuild.result == 'FAILURE' || params.CLEANUP_ON_SUCCESS == true) {
-                    echo "Cleaning up containers..."
-                    sh 'docker-compose down -v'
-                } else {
+                // // Only cleanup on failure or if explicitly requested
+                // if (currentBuild.result == 'FAILURE' || params.CLEANUP_ON_SUCCESS == true) {
+                //     echo "Cleaning up containers..."
+                //     sh 'docker-compose down -v'
+                // } else {
                     echo "Build successful - leaving services running"
                     echo "Access your application at: http://localhost:8087"
                     echo "Access Jaeger at: http://localhost:16686"
                     echo "Access Grafana at: http://localhost:3000"
                     echo "Access Prometheus at: http://localhost:9090"
-                }
+                // }
             }
         }
     }
