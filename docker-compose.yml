@@ -14,16 +14,11 @@ services:
       - SPRING_JPA_HIBERNATE_DDL-AUTO=update
       - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
     ports:
-      - "8086:8086"   # Spring Boot app
-      - "9404:9404"   # Prometheus metrics (if used)
-    # depends_on is for service startup order within this compose file.
-    # Since mysql, nexus, and sonarqube are running externally, 
-    # we rely on their external availability.
-    # The names 'mysql', 'nexus', 'sonarqube' should resolve via Docker's internal DNS
-    # if they are on the same network as this 'app' service.
+      - "8086:8086"
+      - "9404:9404"
     networks:
-      - backend
-      - monitoring
+      backend:
+      monitoring:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
       interval: 30s
@@ -33,5 +28,7 @@ services:
 networks:
   backend:
     external: true
+    name: backend  
   monitoring:
     external: true
+    name: monitoring
