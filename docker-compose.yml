@@ -60,7 +60,6 @@ services:
     ports:
       - "49000:8080"
       - "50000:50000"
-    network_mode: host
     networks:
       - backend
     environment:
