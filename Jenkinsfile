@@ -104,7 +104,7 @@ pipeline {
             sh 'docker-compose stop || true'
             
             // Pull latest images for services that need updating
-            sh 'docker-compose pull --quiet app jenkins prometheus grafana'  # Only pull what changes
+            sh 'docker-compose pull --quiet app jenkins prometheus grafana' 
             
             // Bring up services, reusing existing containers
             sh '''
