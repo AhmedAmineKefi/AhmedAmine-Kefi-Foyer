@@ -16,17 +16,15 @@ services:
     ports:
       - "8086:8086"   # Spring Boot app
       - "9404:9404"   # Prometheus metrics (if used)
-    depends_on:
-    - mysql
-    - nexus
-    - sonarqube
-      # Optionally use condition: service_healthy if you run dependencies with Compose; here just document for humans
-      # If you want Compose to wait before starting, use healthcheck on app itself
+    # depends_on is for service startup order within this compose file.
+    # Since mysql, nexus, and sonarqube are running externally, 
+    # we rely on their external availability.
+    # The names 'mysql', 'nexus', 'sonarqube' should resolve via Docker's internal DNS
+    # if they are on the same network as this 'app' service.
     networks:
       - backend
       - monitoring
     healthcheck:
-      # This is optional and helpful for automation
       test: ["CMD", "curl", "-f", "http://localhost:8086/Foyer/actuator/health"]
       interval: 30s
       timeout: 10s
@@ -37,5 +35,3 @@ networks:
     external: true
   monitoring:
     external: true
-
-# NO VOLUMES: app does not need persistent volumes since persistent services are managed outside
