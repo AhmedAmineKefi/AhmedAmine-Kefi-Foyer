@@ -66,7 +66,7 @@ services:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
   sonarqube:
     image: sonarqube:lts
-    container_name: sonarqube-foyer
+    container_name: sonarqube
     hostname: sonarqube
     ports:
       - "9000:9000"
