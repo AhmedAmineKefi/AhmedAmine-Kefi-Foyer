@@ -118,13 +118,28 @@ pipeline {
             sh 'docker system prune -f'
             cleanWs()
         }
-        success {
-            echo """
-            ✅ Pipeline Successful!
-            Application: http://localhost:8080
-            SonarQube: ${SONARQUBE_URL} (admin/admin)
-            Nexus: ${NEXUS_URL} (admin/dd66a977-636f-47c9-ba17-f1c6e0dcd371)
-            """
-        }
+       success {
+    echo """
+    ✅ Pipeline Successful!
+    ======================
+    Application:      http://localhost:8086/Foyer
+    API Documentation: http://localhost:8086/Foyer/swagger-ui.html
+    Actuator Endpoints:
+      - Health:      http://localhost:8086/Foyer/actuator/health
+      - Metrics:     http://localhost:8086/Foyer/actuator/prometheus
+      - Info:        http://localhost:8086/Foyer/actuator/info
+    
+    Database:
+      - JDBC URL:    jdbc:mysql://localhost:3306/foyer
+      - Username:    admin
+      - Password:    admin
+    
+    Monitoring:
+      - Prometheus:  http://localhost:9090
+      - Grafana:     http://localhost:3000 (admin/admin)
+    
+    Logs: /var/log/foyer-app.log
+    """
+}
     }
 }
