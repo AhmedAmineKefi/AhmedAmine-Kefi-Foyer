@@ -65,8 +65,8 @@ pipeline {
             // Proceed with Maven deploy
             sh """
                 mvn deploy \
-                  -Dnexus.user=${NEXUS_USER} \
-                  -Dnexus.password=${NEXUS_PASS} \
+                  -Dnexus.user=admin \
+                  -Dnexus.password=admin \
                   -DaltDeploymentRepository=nexus::default::http://localhost:8081/repository/maven-snapshots/
             """
         }
