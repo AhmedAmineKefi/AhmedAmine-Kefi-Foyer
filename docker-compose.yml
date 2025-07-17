@@ -14,7 +14,7 @@ services:
       - mysql_data:/var/lib/mysql
 
   foyer-app:
-    image: aakefi/foyer:latest
+    image: aakefi/foyer-app:latest
     container_name: foyer-app
     ports:
       - "8086:8086"
