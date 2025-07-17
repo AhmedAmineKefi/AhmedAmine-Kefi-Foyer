@@ -50,19 +50,28 @@ pipeline {
 
         // Stage 4: Deploy to Nexus
         stage('Nexus Deploy') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
-                    sh """
-                        mvn deploy \
-                          -DaltDeploymentRepository=nexus::default::${NEXUS_URL}/repository/maven-releases/ \
-                          -DrepositoryId=nexus \
-                          -Durl=${NEXUS_URL}/repository/maven-releases/ \
-                          -Dnexus.user=${NEXUS_USER} \
-                          -Dnexus.password=${NEXUS_PASS}
-                    """
-                }
-            }
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'nexus-creds',
+            usernameVariable: 'NEXUS_USER',
+            passwordVariable: 'NEXUS_PASS'
+        )]) {
+            // Debug: Check if variables exist (values will be masked)
+            sh '''
+                echo "NEXUS_USER is set (masked): ${NEXUS_USER}"
+                echo "NEXUS_PASS is set (masked): ${NEXUS_PASS}"
+            '''
+            
+            // Proceed with Maven deploy
+            sh """
+                mvn deploy \
+                  -Dnexus.user=${NEXUS_USER} \
+                  -Dnexus.password=${NEXUS_PASS} \
+                  -DaltDeploymentRepository=nexus::default::http://nexus:8081/repository/maven-releases/
+            """
         }
+    }
+}
 
         // Stage 5: Docker Build
         stage('Docker Build') {
