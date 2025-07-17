@@ -83,18 +83,18 @@ pipeline {
         }
 
         // Stage 6: Push to Docker Hub
-        stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin
-                        docker push ${DOCKER_IMAGE}:${env.BUILD_ID}
-                        docker tag ${DOCKER_IMAGE}:${env.BUILD_ID} ${DOCKER_IMAGE}:latest
-                        docker push ${DOCKER_IMAGE}:latest
-                    """
-                }
-            }
-        }
+        // stage('Docker Push') {
+        //     steps {
+        //         withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+        //             sh """
+        //                 echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin
+        //                 docker push ${DOCKER_IMAGE}:${env.BUILD_ID}
+        //                 docker tag ${DOCKER_IMAGE}:${env.BUILD_ID} ${DOCKER_IMAGE}:latest
+        //                 docker push ${DOCKER_IMAGE}:latest
+        //             """
+        //         }
+        //     }
+        // }
 
         // Stage 7: Docker Compose - FIXED VERSION
         stage('Docker Compose Up') {
@@ -199,51 +199,23 @@ pipeline {
         }
     }
 
-    post {
+ post {
         always {
             script {
-                // Show final status before cleanup
-                sh 'echo "=== Final Status Before Cleanup ==="'
-                sh 'docker-compose ps || true'
+                echo "=== Final Status Before Cleanup ==="
+                sh 'docker-compose ps'
                 
-                // Only clean up build artifacts, not running containers
-               // sh 'docker image prune -f --filter "dangling=true" || true'
-                
-                // Don't run docker system prune as it removes everything
-                // sh 'docker system prune -f'  // REMOVED: This was stopping containers
-            }
-            cleanWs()
-        }
-        success {
-            echo """
-            ✅ Pipeline Successful!
-            ======================
-            Application:      http://localhost:8086/Foyer
-            API Documentation: http://localhost:8086/Foyer/swagger-ui.html
-            Actuator Endpoints:
-              - Health:      http://localhost:8086/Foyer/actuator/health
-              - Metrics:     http://localhost:8086/Foyer/actuator/prometheus
-              - Info:        http://localhost:8086/Foyer/actuator/info
-
-            Database:
-              - JDBC URL:    jdbc:mysql://localhost:3306/foyer
-              - Username:    root
-              - Password:    password
-
-            Monitoring:
-              - Prometheus:  http://localhost:9090
-              - Grafana:     http://localhost:3000 (admin/admin)
-
-            To check container status: docker-compose ps
-            To view logs: docker-compose logs [service-name]
-            """
-        }
-        failure {
-            script {
-                sh 'echo "=== Deployment Failed - Container Status ==="'
-                sh 'docker-compose ps || true'
-                sh 'echo "=== Recent Logs ==="'
-                sh 'docker-compose logs --tail=100 || true'
+                // Only cleanup on failure or if explicitly requested
+                if (currentBuild.result == 'FAILURE' || params.CLEANUP_ON_SUCCESS == true) {
+                    echo "Cleaning up containers..."
+                    sh 'docker-compose down -v'
+                } else {
+                    echo "Build successful - leaving services running"
+                    echo "Access your application at: http://localhost:8087"
+                    echo "Access Jaeger at: http://localhost:16686"
+                    echo "Access Grafana at: http://localhost:3000"
+                    echo "Access Prometheus at: http://localhost:9090"
+                }
             }
         }
     }
