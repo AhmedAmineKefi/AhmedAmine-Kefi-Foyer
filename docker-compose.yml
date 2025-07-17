@@ -17,6 +17,9 @@ services:
       - "8086:8086"   # Spring Boot app
       - "9404:9404"   # Prometheus metrics (if used)
     depends_on:
+    - mysql
+    - nexus
+    - sonarqube
       # Optionally use condition: service_healthy if you run dependencies with Compose; here just document for humans
       # If you want Compose to wait before starting, use healthcheck on app itself
     networks:
