@@ -1,4 +1,4 @@
-package tn.esprit.spring.config;
+package tn.esprit.spring.Config;
 
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.annotation.PreDestroy;
+import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 
 @Configuration
@@ -45,7 +45,7 @@ public class OpenTelemetryConfig {
         tracerProvider = SdkTracerProvider.builder()
                 .addSpanProcessor(BatchSpanProcessor.builder(spanExporter)
                         .setMaxExportBatchSize(512)
-                        .setExportTimeout(Duration.ofSeconds(2))
+                        .setExporterTimeout(Duration.ofSeconds(2))
                         .setScheduleDelay(Duration.ofSeconds(5))
                         .build())
                 .setResource(resource)
