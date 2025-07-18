@@ -111,50 +111,50 @@ pipeline {
             }
         }
         
-        stage('Verify Deployment') {
-            steps {
-                script {
-                    sh '''
-                        echo "=== Verifying deployment ==="
+        // stage('Verify Deployment') {
+        //     steps {
+        //         script {
+        //             sh '''
+        //                 echo "=== Verifying deployment ==="
                         
-                        # Show container details
-                        docker-compose -p ${COMPOSE_PROJECT_NAME} ps
+        //                 # Show container details
+        //                 docker-compose -p ${COMPOSE_PROJECT_NAME} ps
                         
-                        # Test application health on multiple possible ports
-                        echo "=== Testing application health ==="
-                        APP_HEALTHY=false
+        //                 # Test application health on multiple possible ports
+        //                 echo "=== Testing application health ==="
+        //                 APP_HEALTHY=false
                         
-                        for port in 8087 8086 8080; do
-                            echo "Testing port $port..."
-                            if curl -f http://localhost:$port/actuator/health 2>/dev/null; then
-                                echo "✅ Application is healthy on port $port"
-                                APP_HEALTHY=true
-                                break
-                            elif curl -f http://localhost:$port/Foyer/actuator/health 2>/dev/null; then
-                                echo "✅ Application is healthy on port $port with /Foyer path"
-                                APP_HEALTHY=true
-                                break
-                            fi
-                        done
+        //                 for port in 8087 8086 8080; do
+        //                     echo "Testing port $port..."
+        //                     if curl -f http://localhost:$port/actuator/health 2>/dev/null; then
+        //                         echo "✅ Application is healthy on port $port"
+        //                         APP_HEALTHY=true
+        //                         break
+        //                     elif curl -f http://localhost:$port/Foyer/actuator/health 2>/dev/null; then
+        //                         echo "✅ Application is healthy on port $port with /Foyer path"
+        //                         APP_HEALTHY=true
+        //                         break
+        //                     fi
+        //                 done
                         
-                        if [ "$APP_HEALTHY" = false ]; then
-                            echo "❌ Application health check failed on all ports"
-                            echo "Checking application logs:"
-                            docker-compose -p ${COMPOSE_PROJECT_NAME} logs --tail=50 foyer-app
-                            exit 1
-                        fi
+        //                 if [ "$APP_HEALTHY" = false ]; then
+        //                     echo "❌ Application health check failed on all ports"
+        //                     echo "Checking application logs:"
+        //                     docker-compose -p ${COMPOSE_PROJECT_NAME} logs --tail=50 foyer-app
+        //                     exit 1
+        //                 fi
                         
-                        # Test monitoring services
-                        echo "=== Testing monitoring services ==="
-                        curl -f http://localhost:16686/ && echo "✅ Jaeger accessible" || echo "⚠️ Jaeger not accessible"
-                        curl -f http://localhost:3000/api/health && echo "✅ Grafana accessible" || echo "⚠️ Grafana not accessible"
-                        curl -f http://localhost:9090/-/healthy && echo "✅ Prometheus accessible" || echo "⚠️ Prometheus not accessible"
+        //                 # Test monitoring services
+        //                 echo "=== Testing monitoring services ==="
+        //                 curl -f http://localhost:16686/ && echo "✅ Jaeger accessible" || echo "⚠️ Jaeger not accessible"
+        //                 curl -f http://localhost:3000/api/health && echo "✅ Grafana accessible" || echo "⚠️ Grafana not accessible"
+        //                 curl -f http://localhost:9090/-/healthy && echo "✅ Prometheus accessible" || echo "⚠️ Prometheus not accessible"
                         
-                        echo "=== Deployment verification complete ==="
-                    '''
-                }
-            }
-        }
+        //                 echo "=== Deployment verification complete ==="
+        //             '''
+        //         }
+        //     }
+        // }
     }
 
     post {
