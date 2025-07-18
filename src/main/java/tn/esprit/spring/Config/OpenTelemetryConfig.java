@@ -22,7 +22,7 @@ public class OpenTelemetryConfig {
     @Value("${otel.service.name:foyer-app}")
     private String serviceName;
     
-    @Value("${otel.exporter.otlp.endpoint:http://localhost:4317}")
+    @Value("${otel.exporter.otlp.endpoint:http://jaeger:4318}")
     private String otlpEndpoint;
 
     private OpenTelemetry openTelemetry;
@@ -36,29 +36,20 @@ public class OpenTelemetryConfig {
                         .put(ResourceAttributes.SERVICE_VERSION, "1.0.0")
                         .build());
 
-        // Configure OTLP exporter
-        OtlpGrpcSpanExporter spanExporter = OtlpGrpcSpanExporter.builder()
+        OtlpHttpSpanExporter spanExporter = OtlpHttpSpanExporter.builder()
                 .setEndpoint(otlpEndpoint)
+                .addHeader("Content-Type", "application/json")
                 .build();
 
-        // Configure tracer provider with proper shutdown handling
-        tracerProvider = SdkTracerProvider.builder()
-                .addSpanProcessor(BatchSpanProcessor.builder(spanExporter)
-                        .setMaxExportBatchSize(512)
-                        .setExporterTimeout(Duration.ofSeconds(2))
-                        .setScheduleDelay(Duration.ofSeconds(5))
-                        .build())
+        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
+                .addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
                 .setResource(resource)
                 .build();
 
-        openTelemetry = OpenTelemetrySdk.builder()
+        return OpenTelemetrySdk.builder()
                 .setTracerProvider(tracerProvider)
-                .build();
-
-        // Set as global instance
-        GlobalOpenTelemetry.set(openTelemetry);
-
-        return openTelemetry;
+                .buildAndRegisterGlobal();
+    
     }
 
     @Bean
