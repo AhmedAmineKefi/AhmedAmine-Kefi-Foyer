@@ -1,6 +1,30 @@
 version: '3.8'
 
 services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-foyer
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: foyer
+      MYSQL_USER: foyer_user
+      MYSQL_PASSWORD: foyer_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+      start_period: 30s
+    networks:
+      - foyer-network
+    restart: unless-stopped
+
+  # Your Application
   foyer-app:
     build: .
     container_name: foyer-app
@@ -12,13 +36,27 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
-      - JAVA_OPTS=-javaagent:/app/opentelemetry-javaagent.jar
+      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=foyer_user
+      - SPRING_DATASOURCE_PASSWORD=foyer_password
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
     depends_on:
-      - jaeger
-      - prometheus
-      - grafana
+      mysql:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
     networks:
+      - foyer-network
       - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8086/Foyer/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
 
   # Jaeger for distributed tracing
   jaeger:
@@ -32,6 +70,7 @@ services:
       - COLLECTOR_OTLP_ENABLED=true
     networks:
       - monitoring
+    restart: unless-stopped
 
   # Prometheus for metrics collection
   prometheus:
@@ -51,6 +90,7 @@ services:
       - '--web.enable-lifecycle'
     networks:
       - monitoring
+    restart: unless-stopped
 
   # Grafana for visualization
   grafana:
@@ -64,32 +104,19 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
     networks:
       - monitoring
-
-  # Jenkins for CI/CD
-  jenkins:
-    image: jenkins/jenkins:lts
-    container_name: jenkins
-    ports:
-      - "8083:8080"
-      - "50000:50000"
-    volumes:
-      - jenkins_data:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-    networks:
-      - monitoring
+    restart: unless-stopped
 
 volumes:
+  mysql_data:
   prometheus_data:
   grafana_data:
-  jenkins_data:
 
 networks:
+  foyer-network:
+    driver: bridge
   monitoring:
     driver: bridge
