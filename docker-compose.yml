@@ -29,7 +29,7 @@ services:
     build: .
     container_name: aakefi/foyer-app
     ports:
-      - "8087:8080"
+      - "8086:8080"
     environment:
       - OTEL_SERVICE_NAME=foyer-app
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:14250
