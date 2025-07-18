@@ -1,0 +1,63 @@
+apiVersion: 2019-12-01
+location: eastus
+name: foyer-app-deployment
+properties:
+  containers:
+  - name: mysql-foyer
+    properties:
+      image: mysql:8.0
+      resources:
+        requests:
+          cpu: 1.0
+          memoryInGb: 2.0
+      ports:
+      - port: 3306
+        protocol: TCP
+      environmentVariables:
+      - name: MYSQL_ROOT_PASSWORD
+        value: root
+      - name: MYSQL_DATABASE
+        value: foyer
+      - name: MYSQL_USER
+        value: admin
+      - name: MYSQL_PASSWORD
+        value: admin
+      volumeMounts:
+      - name: mysql-data
+        mountPath: /var/lib/mysql
+  - name: foyer-app
+    properties:
+      image: aakefi/foyer-app:latest
+      resources:
+        requests:
+          cpu: 1.0
+          memoryInGb: 2.0
+      ports:
+      - port: 8080
+        protocol: TCP
+      environmentVariables:
+      - name: SPRING_DATASOURCE_URL
+        value: jdbc:mysql://localhost:3306/foyer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - name: SPRING_DATASOURCE_USERNAME
+        value: root
+      - name: SPRING_DATASOURCE_PASSWORD
+        value: root
+      - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - name: SPRING_JPA_SHOW_SQL
+        value: "true"
+  osType: Linux
+  restartPolicy: Always
+  ipAddress:
+    type: Public
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 3306
+  volumes:
+  - name: mysql-data
+    emptyDir: {}
+tags: {}
+type: Microsoft.ContainerInstance/containerGroups
+

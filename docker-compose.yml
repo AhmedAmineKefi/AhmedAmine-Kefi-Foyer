@@ -27,7 +27,7 @@ services:
   # Your Application
   foyer-app:
     build: .
-    container_name: aakefi/foyer-app
+    container_name: foyer-app
     ports:
       - "8086:8080"
     environment:
@@ -37,9 +37,9 @@ services:
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
       - SPRING_PROFILES_ACTIVE=default
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/foyer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      - SPRING_DATASOURCE_USERNAME=foyer_user
-      - SPRING_DATASOURCE_PASSWORD=foyer_password
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-foyer:3306/foyer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_JPA_SHOW_SQL=true
     depends_on:
@@ -51,7 +51,7 @@ services:
       - foyer-network
       - monitoring
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8086/Foyer/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/Foyer/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
