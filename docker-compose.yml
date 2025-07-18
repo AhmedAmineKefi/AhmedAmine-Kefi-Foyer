@@ -24,22 +24,6 @@ services:
       - foyer-network
     restart: unless-stopped
 
-  # SonarQube
-  sonarqube:
-    image: sonarqube:community
-    container_name: sonarqube
-    ports:
-      - "9000:9000"
-    environment:
-      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
-    volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_extensions:/opt/sonarqube/extensions
-      - sonarqube_logs:/opt/sonarqube/logs
-    networks:
-      - foyer-network
-    restart: unless-stopped
-
   # Your Application
   foyer-app:
     build: .
@@ -58,14 +42,11 @@ services:
       - SPRING_DATASOURCE_PASSWORD=foyer_password
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_JPA_SHOW_SQL=true
-      - SONAR_HOST_URL=http://sonarqube:9000
     depends_on:
       mysql:
         condition: service_healthy
       jaeger:
         condition: service_started
-      sonarqube:
-        condition: service_healthy
     networks:
       - foyer-network
       - monitoring
@@ -135,9 +116,6 @@ volumes:
   mysql_data:
   prometheus_data:
   grafana_data:
-  sonarqube_data:
-  sonarqube_extensions:
-  sonarqube_logs:
 
 networks:
   foyer-network:
