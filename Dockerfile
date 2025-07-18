@@ -15,6 +15,10 @@ RUN apt-get update && \
     apt-get install -y default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
 
+ARG OTEL_AGENT_VERSION=1.32.0
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_AGENT_VERSION}/opentelemetry-javaagent.jar /otel-agent.jar
+ENV JAVA_TOOL_OPTIONS "-javaagent:/otel-agent.jar"
+
 COPY --from=build /app/target/*.jar app.jar
 
 # Expose app + metrics ports
